@@ -1,18 +1,19 @@
-from ._importable import LazyImport
+import re
 from pathlib import Path
+try:
+    from ._importable import LazyImport
+except:
+    print('debug mode')
 
 USER_IMPORTS_PATH = Path.home() / ".pyforest" / "user_imports.py"
-
-TEMPLATE_TEXT = """# Add your imports here, line by line
-# e.g
-# import pandas as pd
-# from pathlib import Path
-# import re
-"""
+TEMPLATE_TEXT = Path(__file__).parent.joinpath('user_imports.py').read_text()
 
 
 def _clean_line(x: str) -> str:
-    return x.replace("\n", "").strip()
+    x = re.sub(r'\s+', ' ', x)
+    x = re.sub(r'\s*,\s*', ',', x)
+    x = x.strip()
+    return x
 
 
 def _is_comment(x: str) -> bool:
@@ -28,7 +29,13 @@ def _is_import_statement(x: str) -> bool:
 
 
 def _find_imports(file_lines: list) -> list:
-    return [file_line for file_line in file_lines if _is_import_statement(file_line)]
+    imports = []
+    for file_line in file_lines:
+        if not _is_import_statement(file_line): continue
+        results = re.match(r'(.*?\bimport\b)\s+(.*)', file_line)
+        results = [f'{results.group(1)} {x}' for x in results.group(2).split(',')]
+        imports.extend(results)
+    return imports
 
 
 def _get_imports(file_lines: list) -> list:
@@ -72,3 +79,8 @@ def _load_user_specific_imports(
 ) -> None:
     import_statements = _get_imports_from_user_settings(user_imports_path)
     _assign_imports_to_globals(import_statements, globals_)
+
+
+if __name__ == '__main__':
+    import_statements = _get_imports_from_user_settings(USER_IMPORTS_PATH)
+    print(import_statements)
